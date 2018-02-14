@@ -1,0 +1,65 @@
+public class TimeGadget {
+
+    private float lastTemperature = 0;
+
+    private java.time.LocalDateTime lastChecked = null;
+
+    public float getTemperature(java.time.LocalDateTime currentTime) {
+        if (lastChecked == null || currentTime.isAfter(lastChecked.plusMinutes(30))) {
+            try {
+                java.net.URL url = new java.net.URL("http://api.weatherunlocked.com/api/forecast/us.01609?app_id=APP_ID&app_key=APP_KEY");
+                java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(url.openStream()));
+                StringBuffer sb = new StringBuffer(br.readLine());
+                int c = sb.indexOf("temp_c");
+                float celsiusTemperature = Float.valueOf(sb.substring(c + 9, sb.indexOf(",", c)));
+                lastTemperature = ((9 / 5.0f) * celsiusTemperature + 32);
+            } catch (Exception e) {
+                return Float.NaN;
+            }
+            lastChecked = currentTime;
+        }
+        return lastTemperature;
+    }
+
+public float getTemperatureRnd(java.time.LocalDateTime currentTime) {
+  return (float) (40 + Math.random()*50);
+}
+
+    int[] values = null;
+    int idx = 0;
+    int[] _extremes = new int[2];
+    int[] getExtremes(float t) {
+       if (values == null) {
+         values = new int[10];
+         for (int i = 0; i < values.length; i++) { values[i] = (int)t; }
+       } else {
+         values[idx++] = (int) t;
+         if (idx == 10) { idx = 0; }
+       }
+       _extremes[0] = _extremes[1] = (int) t;
+       for (int old : values) {
+         if (old < _extremes[0]) { _extremes[0] = old; }
+         if (old > _extremes[1]) { _extremes[1] = old; }
+       }
+       return _extremes;
+    }
+
+
+    public void loop() {
+        try {
+            Thread.sleep(1000);
+        } catch (Exception ex) {
+        }
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+	float temp = getTemperatureRnd(now); // just here to check that window works
+        int[] extreme = getExtremes(temp);
+        System.out.printf("The Temperature is %f in range[%d,%d] at %s%n", temp, extreme[0], extreme[1], now.toString());
+    }
+
+    public static void main(String[] args) {
+        TimeGadget gadget = new TimeGadget();
+        while (true) {
+            gadget.loop();
+        }
+    }
+}
