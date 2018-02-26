@@ -1,25 +1,25 @@
-package example.timeGadget
+package org.combinators.gadget
 
 import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.body.BodyDeclaration
 import com.github.javaparser.ast.expr.Expression
 import com.github.javaparser.ast.stmt.Statement
 import org.combinators.cls.interpreter.combinator
-import org.combinators.cls.types.Type
+import org.combinators.cls.types.{Omega, Type}
 import org.combinators.cls.types.syntax._
 import org.combinators.templating.twirl.Java
-import time._
+import org.combinators.gadget._
 
 
 class Concepts(val gadget:Gadget) extends SemanticTypes {
 
-  class ExtremeRange(ef:ExtremaFeature, wf:WeatherFeature) {
+  class ExtremeRange(ef:ExtremaFeature, wf:combinators.TemperatureFeature) {
     def apply() : Seq[BodyDeclaration[_]] = {
 
       // weather feature updates a fixed period
       // extrema only requires to record at that internal frequency
-      val ef_period = frequencyToSecond(ef.unit) * ef.count
-      val wf_period = frequencyToSecond(wf.unit) * wf.count
+      val ef_period = frequencyToSecond(ef.unit) * ef.interval
+      val wf_period = frequencyToSecond(wf.unit) * wf.interval
       val size:Int = (ef_period / wf_period).asInstanceOf[Int]
         Java(s"""
            |public float getTemperatureRnd(java.time.LocalDateTime currentTime) {
@@ -46,14 +46,14 @@ class Concepts(val gadget:Gadget) extends SemanticTypes {
            |}""".stripMargin).classBodyDeclarations()
     }
 
-    val semanticType:Type = artifact(artifact.extraCode, feature(FeatureUnit.Extrema))
+    val semanticType:Type = artifact(artifact.extraCode, feature(FeatureClassification.Extrema))
   }
 
-  class CurrentTemperature(wf: WeatherFeature) {
+  class CurrentTemperature(wf: combinators.TemperatureFeature) {
 
     def apply(conversion: Expression => Expression): Seq[BodyDeclaration[_]] = {
       val zipCode = wf.zip
-      val period = frequencyToSecond(wf.unit) * wf.count
+      val period = frequencyToSecond(wf.unit) * wf.interval
 
       Java(s"""
             |private float lastTemp = 0;
@@ -91,7 +91,7 @@ class Concepts(val gadget:Gadget) extends SemanticTypes {
 
     val semanticType:Type =
       feature.temperature.converter(TemperatureUnit.Fahrenheit, temperatureUnit) =>:
-        artifact(artifact.extraCode,  temperatureUnit :&: feature(FeatureUnit.Weather))
+        artifact(artifact.extraCode,  temperatureUnit :&: feature(FeatureClassification.Weather))
   }
 
   @combinator object CelsiusConverter {
@@ -120,7 +120,7 @@ class Concepts(val gadget:Gadget) extends SemanticTypes {
     def apply(extraDecl: Seq[BodyDeclaration[_]], extraCode: Expression => Seq[Statement]):
        CompilationUnit = {
 
-      val freqFeature = gadget.getFeature(FeatureUnit.Frequency).get.asInstanceOf[FrequencyFeature]
+      val freqFeature = gadget.getFeature(FeatureClassification.RepeatInInterval).get.asInstanceOf[PeriodicFeature]
 
       val totalSec:Long = freqFeature.count * frequencyToSecond(freqFeature.unit) * 1000
       Java(
@@ -141,7 +141,7 @@ class Concepts(val gadget:Gadget) extends SemanticTypes {
 
     val semanticType: Type = artifact(artifact.combinedCode, featureType) =>:
         artifact(artifact.loopCode, featureType) =>:
-        artifact(artifact.mainProgram, featureType :&: feature(FeatureUnit.Frequency))
+        artifact(artifact.mainProgram, featureType :&: feature(FeatureClassification.RepeatInInterval))
   }
 
 
@@ -152,7 +152,7 @@ class Concepts(val gadget:Gadget) extends SemanticTypes {
         s"""
            |float temperature = getTemperature($theCurrentTime);
            |System.out.println($theCurrentTime + ": The temperature is: " + temperature);""".stripMargin).statements()
-    val semanticType: Type = artifact(artifact.loopCode, feature(FeatureUnit.Weather))
+    val semanticType: Type = artifact(artifact.loopCode, feature(FeatureClassification.Weather))
   }
 
   // process temperature in given expression to compute extrema
@@ -164,7 +164,7 @@ class Concepts(val gadget:Gadget) extends SemanticTypes {
                  |
                  """.stripMargin).statements()
 
-    val semanticType: Type = artifact(artifact.loopCode, feature(FeatureUnit.Extrema))
+    val semanticType: Type = artifact(artifact.loopCode, feature(FeatureClassification.Extrema))
   }
 
   // Combined. This seems like this could be done a better way...
@@ -174,21 +174,21 @@ class Concepts(val gadget:Gadget) extends SemanticTypes {
         new ShowTemperature().apply(theCurrentTime) ++
         new ProcessExtrema().apply(Java("temperature").expression())
     }
-    val semanticType: Type = artifact(artifact.loopCode, feature(FeatureUnit.Weather) :&: feature(FeatureUnit.Extrema))
+    val semanticType: Type = artifact(artifact.loopCode, feature(FeatureClassification.Weather) :&: feature(FeatureClassification.Extrema))
   }
 
   // Combined. This seems like it could be done a better way..
   class Combined_Temp_Extrema_Code(tempUnit:TemperatureUnit) {
     def apply (temp:Seq[BodyDeclaration[_]]) : Seq[BodyDeclaration[_]] = {
 
-      val wf = gadget.getFeature(FeatureUnit.Weather).get.asInstanceOf[WeatherFeature]
-      val ef = gadget.getFeature(FeatureUnit.Extrema).get.asInstanceOf[ExtremaFeature]
+      val wf = gadget.getFeature(FeatureClassification.Weather).get.asInstanceOf[combinators.TemperatureFeature]
+      val ef = gadget.getFeature(FeatureClassification.Extrema).get.asInstanceOf[ExtremaFeature]
 
       temp ++ new ExtremeRange(ef, wf).apply()
     }
 
-    val semanticType: Type = artifact(artifact.extraCode, feature.temperature(tempUnit) :&: feature(FeatureUnit.Weather)) =>:
-      artifact(artifact.combinedCode, feature.temperature(tempUnit) :&: feature(FeatureUnit.Weather) :&: feature(FeatureUnit.Extrema))
+    val semanticType: Type = artifact(artifact.extraCode, feature.temperature(tempUnit) :&: feature(FeatureClassification.Weather)) =>:
+      artifact(artifact.combinedCode, feature.temperature(tempUnit) :&: feature(FeatureClassification.Weather) :&: feature(FeatureClassification.Extrema))
   }
 }
 

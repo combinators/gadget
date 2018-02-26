@@ -1,14 +1,60 @@
-package example.timeGadget
+package org.combinators.gadget
+
+import java.util.stream.Collectors
 
 import org.combinators.cls.types._
 import org.combinators.cls.types.syntax._
-import time.{FeatureUnit, FrequencyUnit, TemperatureUnit}
+import org.combinators.gadget.{FeatureClassification, TemperatureUnit, TimeUnit}
+import shapeless.feat.Finite
 
+import scala.collection.JavaConverters._
 
 trait SemanticTypes {
 
+  object registry {
+    def apply(ofConcept: Type): Type = 'Registry(ofConcept)
+  }
+
+  object metarReport {
+    val locations: Type = 'Locations
+    val airportInfoMap: Type = 'AirportInfoMap
+    val updateMethod: Type = 'AirportUpdateMethod
+    val observationTimeMethod: Type = 'ObservationTimeMethod
+    val metarValueMethod: Type = 'MetarValueMethod
+
+    object metarMethodCombinatorType {
+      def apply(semanticMethodType: Type) =
+        metarReport.locations =>:
+        metarReport.metarValueMethod =>:
+        registry(imports) =>:
+        registry(featureCode) =>:
+        semanticMethodType
+    }
+  }
+
+  object temperature {
+    object unit {
+      def apply(unit: TemperatureUnit): Type = Constructor(unit.toString)
+    }
+    object temperatureMethod {
+      def apply(unit: Type): Type = 'TemperatureMethod(unit)
+    }
+
+    object conversion {
+      def apply(fromUnit: Type, toUnit: Type): Type = 'Conversion(fromUnit, fromUnit)
+    }
+  }
+
+  val imports: Type = 'Imports
+  val featureCode: Type = 'FeatureCode
+  val featureExecutionCode: Type = 'FeatureExecutionCode
+  val mainCode: Type = 'MainCode
+}
+
+/*class SemanticTypes(gadget: Gadget) {
+
   val temperatureUnit = Variable("TemperatureUnit")
-  val frequencyUnit = Variable("FrequencyUnit")
+  val frequencyUnit = Variable("TimeUnit")
   val featureType = Variable("FeatureType")
 
   val temperatureUnits: Kinding =
@@ -17,12 +63,12 @@ trait SemanticTypes {
     }
 
   val frequencyUnits: Kinding =
-    FrequencyUnit.values().foldLeft(Kinding(frequencyUnit)) {
+    TimeUnit.values().foldLeft(Kinding(frequencyUnit)) {
       case (k, unit) => k.addOption(feature.extrema(unit))
     }
 
   val featureTypes: Kinding =
-    FeatureUnit.values().foldLeft(Kinding(featureType)) {
+    FeatureClassification.values().foldLeft(Kinding(featureType)) {
       case (k, unit) => k.addOption(feature(unit))
     }.addOption(Omega)
 
@@ -32,19 +78,19 @@ trait SemanticTypes {
       .merge(featureTypes)
 
   /** Convert each frequency into corresponding seconds. */
-  def frequencyToSecond(f:FrequencyUnit): Long = f match {
-    case FrequencyUnit.Second => 1
-    case FrequencyUnit.Minute => 60
-    case FrequencyUnit.Hour => 60*60
-    case FrequencyUnit.Day => 24*60*60
-    case FrequencyUnit.Week => 7*24*60*60
-    case FrequencyUnit.Month => 30*24*60*60
-    case FrequencyUnit.Year => 365*24*60*60
+  def frequencyToSecond(f:TimeUnit): Long = f match {
+    case TimeUnit.Second => 1
+    case TimeUnit.Minute => 60
+    case TimeUnit.Hour => 60*60
+    case TimeUnit.Day => 24*60*60
+    case TimeUnit.Week => 7*24*60*60
+    case TimeUnit.Month => 30*24*60*60
+    case TimeUnit.Year => 365*24*60*60
   }
 
   // known capabilities of the gadget. Each new feature is encapsulated here
   object feature {
-    def apply(ft: FeatureUnit): Type = 'Feature(Constructor(ft.toString))
+    def apply(ft: FeatureClassification): Type = 'Feature(Constructor(ft.toString))
 
     // Temperature Feature identified.
     object temperature {
@@ -58,7 +104,7 @@ trait SemanticTypes {
 
     // Record extreme ranges of temperature
     object extrema {
-      def apply(in: FrequencyUnit): Type = 'Extrema(Constructor(in.toString))
+      def apply(in: TimeUnit): Type = 'Extrema(Constructor(in.toString))
 
       object converter {
         def apply(from: Type, to: Type):Type = 'Converter(from, to)
@@ -82,8 +128,11 @@ trait SemanticTypes {
     val loopCode: Type       = 'LoopCodeFor
     val mainProgram: Type    = 'ProgramWith
   }
-}
 
+
+
+}
+*/
 
 
 //
